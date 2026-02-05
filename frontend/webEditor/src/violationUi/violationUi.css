@@ -3,6 +3,37 @@
     bottom: 70px;
     padding: 10px 10px;
 
+    max-width: 30vw;
+
+    .summary-text {
+        white-space: normal !important;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 10px;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+
+    .summary-text p {
+        margin: 0;
+        display: block;
+        width: 100%;
+        white-space: normal;
+    }
+
+    .tab-pane {
+        display: none;
+        font-size: 13px;
+        max-width: 100%;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
     .violation-tabs {
         display: flex;
         border-bottom: 1px solid #ccc;
@@ -24,13 +55,46 @@
         font-weight: bold;
     }
 
-    .tab-pane {
-        display: none;
-        font-size: 13px;
-        padding: 5px;
+    #ai-api-key {
+        background-color: var(--color-background);
+        color: var(--color-foreground);
+        border: 1px solid var(--color-foreground);
+        border-radius: 6px;
     }
 
-    .tab-pane.active {
-        display: block;
+    .api-key-container {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 15px;
+        padding: 5px;
+
+        label {
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        input {
+            width: 100%;
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid var(--color-foreground);
+            border-radius: 3px;
+            background: var(--sprotty-input-background, var(--color-background));
+            color: var(--sprotty-label-color);
+            box-sizing: border-box;
+        }
+    }
+
+    .primary-btn {
+        background-color: var(--sprotty-button-background, #007acc);
+        color: var(--sprotty-button-foreground, #ffffff);
+        border: none;
+        padding: 6px 12px;
+        font-size: 12px;
+        border-radius: 4px;
+        cursor: pointer;
     }
 }
