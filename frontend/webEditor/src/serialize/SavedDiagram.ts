@@ -9,5 +9,11 @@ export interface SavedDiagram {
     constraints?: Constraint[];
     mode?: EditorMode;
     version: number;
+    violations?: Violation[];
 }
 export const CURRENT_VERSION = 1;
+
+export interface Violation {
+    constraint: string; // Der verletzte Constraint
+    violationCauseGraph: string[]; // Pfad der Verletzung
+}

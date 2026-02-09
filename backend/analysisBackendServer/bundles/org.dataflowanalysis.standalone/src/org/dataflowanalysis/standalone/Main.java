@@ -1,11 +1,13 @@
 package org.dataflowanalysis.standalone;
 
 import org.dataflowanalysis.standalone.websocket.WebSocketServerUtils;
+import org.dataflowanalysis.analysis.DataFlowConfidentialityAnalysis;
 
 public class Main {
 	public static void main(String[] args) {		
 		try {			       
             Thread webSocketServer =  WebSocketServerUtils.startWebSocketServer();
+            DataFlowConfidentialityAnalysis.logVersion();
                         
             while(webSocketServer.isAlive());
 

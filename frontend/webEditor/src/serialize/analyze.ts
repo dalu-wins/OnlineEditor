@@ -1,6 +1,6 @@
 import { ActionDispatcher, CommandExecutionContext, ILogger, TYPES } from "sprotty";
 import { FileData, LoadJsonCommand } from "./loadJson";
-import { CURRENT_VERSION, SavedDiagram } from "./SavedDiagram";
+import { CURRENT_VERSION, SavedDiagram, Violation } from "./SavedDiagram";
 import { LabelTypeRegistry } from "../labels/LabelTypeRegistry";
 import { SETTINGS } from "../settings/Settings";
 import { FileName } from "../fileName/fileName";
@@ -10,6 +10,7 @@ import { EditorModeController } from "../settings/editorMode";
 import { Action } from "sprotty-protocol";
 import { ConstraintRegistry } from "../constraint/constraintRegistry";
 import { LoadingIndicator } from "../loadingIndicator/loadingIndicator";
+import { ViolationService } from "../violationUi/violationService";
 
 export namespace AnalyzeAction {
     export const KIND = "analyze";
@@ -31,6 +32,7 @@ export class AnalyzeCommand extends LoadJsonCommand {
         @inject(DfdWebSocket) private readonly dfdWebSocket: DfdWebSocket,
         @inject(TYPES.IActionDispatcher) actionDispatcher: ActionDispatcher,
         @inject(LoadingIndicator) loadingIndicator: LoadingIndicator,
+        @inject(ViolationService) private violationService: ViolationService,
     ) {
         super(
             logger,
@@ -44,13 +46,38 @@ export class AnalyzeCommand extends LoadJsonCommand {
     }
 
     protected async getFile(context: CommandExecutionContext): Promise<FileData<SavedDiagram> | undefined> {
-        const savedDiagram = {
+        const savedDiagram: SavedDiagram = {
             model: context.modelFactory.createSchema(context.root),
             labelTypes: this.labelTypeRegistry.getLabelTypes(),
             constraints: this.constraintRegistry.getConstraintList(),
             mode: this.editorModeController.get(),
             version: CURRENT_VERSION,
         };
-        return await this.dfdWebSocket.requestDiagram("Json:" + JSON.stringify(savedDiagram));
+
+        const response = await this.dfdWebSocket.requestDiagram("Json:" + JSON.stringify(savedDiagram));
+
+        // Temporäre Dummy-Daten für die Verletzungen, um die Funktionalität der ViolationUI zu demonstrieren
+        if (response && response.content) {
+            const dummyViolations: Violation[] = [
+                {
+                    constraint: "Constraint A",
+                    violationCauseGraph: ["Vertex_A", "Vertex_B"],
+                },
+                {
+                    constraint: "Constraint B",
+                    violationCauseGraph: ["Vertex_C", "Vertex_D"],
+                },
+                {
+                    constraint: "Constraint C",
+                    violationCauseGraph: ["Vertex_E", "Vertex_F"],
+                },
+            ];
+
+            response.content.violations = dummyViolations;
+
+            this.violationService.updateViolations(response.content.violations);
+        }
+
+        return response;
     }
 }

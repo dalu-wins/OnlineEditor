@@ -5,25 +5,6 @@
 
     max-width: 30vw;
 
-    .summary-text {
-        white-space: normal !important;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-
-        max-height: 200px;
-        overflow-y: auto;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        line-height: 1.4;
-    }
-
-    .summary-text p {
-        margin: 0;
-        display: block;
-        width: 100%;
-        white-space: normal;
-    }
-
     .tab-pane {
         display: none;
         font-size: 13px;
@@ -36,7 +17,6 @@
 
     .violation-tabs {
         display: flex;
-        border-bottom: 1px solid #ccc;
         margin-bottom: 10px;
     }
 
@@ -88,7 +68,13 @@
         }
     }
 
-    .primary-btn {
+    .button-container {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 20px;
+    }
+
+    .generate-btn {
         background-color: var(--sprotty-button-background, #007acc);
         color: var(--sprotty-button-foreground, #ffffff);
         border: none;
@@ -96,5 +82,41 @@
         font-size: 12px;
         border-radius: 4px;
         cursor: pointer;
+    }
+
+    .summary-text {
+        width: 100%;
+        display: block;
+        white-space: normal;
+        word-wrap: break-word;
+        overflow-wrap: anywhere;
+        max-height: 250px;
+        overflow-y: auto;
+    }
+
+    .summary-text p {
+        margin: 0;
+        display: block;
+        width: 100%;
+        white-space: normal;
+    }
+
+    .status-info {
+        display: block;
+        width: 100%;
+        color: #636e72;
+        font-style: italic;
+        font-size: 0.9em;
+        line-height: 1.4;
+        text-align: center;
+        padding: 20px 10px;
+        box-sizing: border-box;
+        margin: 0 auto;
+    }
+
+    .violation-item {
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        text-align: left; /* Die Items selbst wieder linksbündig */
     }
 }
