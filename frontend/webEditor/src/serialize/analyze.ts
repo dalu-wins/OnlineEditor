@@ -1,6 +1,6 @@
 import { ActionDispatcher, CommandExecutionContext, ILogger, TYPES } from "sprotty";
 import { FileData, LoadJsonCommand } from "./loadJson";
-import { CURRENT_VERSION, SavedDiagram, Violation } from "./SavedDiagram";
+import { CURRENT_VERSION, SavedDiagram } from "./SavedDiagram";
 import { LabelTypeRegistry } from "../labels/LabelTypeRegistry";
 import { SETTINGS } from "../settings/Settings";
 import { FileName } from "../fileName/fileName";
@@ -56,26 +56,10 @@ export class AnalyzeCommand extends LoadJsonCommand {
 
         const response = await this.dfdWebSocket.requestDiagram("Json:" + JSON.stringify(savedDiagram));
 
-        // Temporäre Dummy-Daten für die Verletzungen, um die Funktionalität der ViolationUI zu demonstrieren
         if (response && response.content) {
-            const dummyViolations: Violation[] = [
-                {
-                    constraint: "Constraint A",
-                    violationCauseGraph: ["Vertex_A", "Vertex_B"],
-                },
-                {
-                    constraint: "Constraint B",
-                    violationCauseGraph: ["Vertex_C", "Vertex_D"],
-                },
-                {
-                    constraint: "Constraint C",
-                    violationCauseGraph: ["Vertex_E", "Vertex_F"],
-                },
-            ];
-
-            response.content.violations = dummyViolations;
-
-            this.violationService.updateViolations(response.content.violations);
+            const violations = response.content.violations || [];
+            this.violationService.updateViolations(violations);
+            response.content.violations = violations;
         }
 
         return response;
