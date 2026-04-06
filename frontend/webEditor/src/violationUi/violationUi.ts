@@ -3,85 +3,207 @@ import { ViolationService } from "./violationService";
 import "./violationUi.css";
 import { AccordionUiExtension } from "../accordionUiExtension";
 import { Violation } from "./Violation";
+import { ConstraintMenu } from "../constraint/ConstraintMenu";
+import { Theme, ThemeManager } from "../settings/Theme";
+import { SETTINGS } from "../settings/Settings";
+
+const EXPLAINER_API_URL = import.meta.env.VITE_EXPLAINER_API_URL;
+const EXPLAINER_API_KEY = import.meta.env.VITE_EXPLAINER_API_KEY;
 
 @injectable()
 export class ViolationUI extends AccordionUiExtension {
     static readonly ID = "violation-ui";
 
-    constructor(@inject(ViolationService) private violationService: ViolationService) {
+    private violations: Violation[] = [];
+    private selectedIndex = -1;
+    private contentElement: HTMLElement | null = null;
+    private detailPane: HTMLElement | null = null;
+
+    private summaryCache: Map<number, { constraint_explanation: string; violation_explanation: string; tfg_context: string; provider: string }> = new Map();
+
+    constructor(
+        @inject(ViolationService) private violationService: ViolationService,
+        @inject(ConstraintMenu) private constraintMenu: ConstraintMenu,
+        @inject(SETTINGS.Theme) private themeManager: ThemeManager,
+    ) {
         super("left", "up");
     }
 
-    id() {
-        return ViolationUI.ID;
-    }
-
-    containerClass() {
-        return ViolationUI.ID;
-    }
+    id() { return ViolationUI.ID; }
+    containerClass() { return ViolationUI.ID; }
 
     protected initializeHeaderContent(headerElement: HTMLElement) {
-        headerElement.innerText = "Violation Summary";
+        headerElement.innerText = "AI Summary";
     }
 
     protected initializeHidableContent(contentElement: HTMLElement) {
-        contentElement.innerHTML = `
-            <div class="violation-content">
-                <div id="simple-summary">
-                    <div class="summary-text">
-                        <p class="status-info">
-                            No violation data found. Run an Analysis first.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `;
+        this.contentElement = contentElement;
+
+        const grid = document.createElement("div");
+        grid.classList.add("violation-content");
+        contentElement.appendChild(grid);
+
+        this.addStatusInfo(grid, "No violation data found. Run an Analysis first.");
+
+        this.themeManager.registerListener(() => this.applyTheme());
 
         this.violationService.onViolationsChanged((violations) => {
-            this.updateSimpleTab(contentElement, violations);
+            this.violations = violations;
+            this.selectedIndex = -1;
+            this.updateViolations(grid);
         });
     }
 
-    private updateSimpleTab(container: HTMLElement, violations: Violation[]) {
-        const simplePane = container.querySelector("#simple-summary .summary-text");
-        if (!simplePane) return;
+    private updateViolations(container: HTMLElement) {
+        container.innerHTML = "";
+        this.summaryCache.clear();
 
-        if (violations.length === 0) {
-            simplePane.innerHTML = `<p class="status-info">No violations found. Everything looks good!</p>`;
+        if (this.violations.length === 0) {
+            this.addStatusInfo(container, "No violations found. Everything looks good!");
             return;
         }
 
-        const listItems = violations
-            .map(
-                (v) => `
-            <div class="violation-item">
-                <table class="violation-table">
-                    <tr>
-                        <td>Constraint</td>
-                        <td>${v.constraint}</td>
-                    </tr>
-                    <tr>
-                        <td>Violation in</td>
-                        <td>${v.violatedVertices.join(", ")}</td>
-                    </tr>
-                    <tr>
-                        <td>
-                            Induced by <span class="help-icon" data-tooltip="The vertex responsible for the data label causing this violation."></span>
-                        </td>
-                        <td>${v.inducingVertices.join(", ")}</td>
-                    </tr>
-                    <tr>
-                        <td>Flow Graph <span class="help-icon" data-tooltip="The part of the graph responsible for the violation."></span></td>
-                        <td>${v.tfg.join(", ")}</td>
-                    </tr>
-                </table>
-            </div>
-        `,
-            )
-            .join("");
+        this.open();
+        this.constraintMenu.collapse();
 
-        simplePane.innerHTML = `
-            <div class="violation-list">${listItems}</div>
-        `;
+        this.addDropDown(
+            container,
+            `Found ${this.violations.length} violation${this.violations.length > 1 ? "s" : ""}`,
+            this.violations.map((v, i) => {
+                const label = v.constraint.split(":")[0].replace(/^-\s*/, "").trim();
+                return { label: `${i + 1}. ${label}`, value: i };
+            }),
+            (index) => {
+                this.selectedIndex = index;
+                this.renderSelected();
+            },
+        );
+
+        this.detailPane = document.createElement("div");
+        this.detailPane.classList.add("violation-detail-pane");
+        container.appendChild(this.detailPane);
+    }
+
+    private async renderSelected() {
+        if (!this.detailPane) return;
+
+        this.detailPane.innerHTML = "";
+
+        let s = this.summaryCache.get(this.selectedIndex);
+        if (!s) {
+            this.addStatusInfo(this.detailPane, "Analyzing...");
+            s = await this.fetchAiSummary(this.violations[this.selectedIndex]);
+            this.summaryCache.set(this.selectedIndex, s);
+            this.detailPane.innerHTML = "";
+        }
+
+        const constraintItem = document.createElement("div");
+        constraintItem.classList.add("violation-item");
+        this.addContent(constraintItem, "Constraint", s.constraint_explanation);
+        this.detailPane.appendChild(constraintItem);
+
+        const violationItem = document.createElement("div");
+        violationItem.classList.add("violation-item");
+        this.addContent(violationItem, "Violation", s.violation_explanation);
+        this.detailPane.appendChild(violationItem);
+
+        this.applyTheme();
+    }
+
+    private addDropDown(
+        container: HTMLElement,
+        label: string,
+        options: { label: string; value: number }[],
+        onChange: (value: number) => void,
+    ): HTMLSelectElement {
+        const row = document.createElement("div");
+        row.classList.add("violation-select-row");
+
+        const textLabel = document.createElement("span");
+        textLabel.classList.add("violation-select-label");
+        textLabel.textContent = label;
+
+        const select = document.createElement("select");
+        select.classList.add("violation-select");
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.textContent = "— select —";
+        select.appendChild(placeholder);
+
+        for (const opt of options) {
+            const option = document.createElement("option");
+            option.value = opt.value.toString();
+            option.textContent = opt.label;
+            select.appendChild(option);
+        }
+
+        select.onchange = () => onChange(parseInt(select.value));
+
+        row.appendChild(textLabel);
+        row.appendChild(select);
+        container.appendChild(row);
+
+        return select;
+    }
+
+    private addContent(container: HTMLElement, label: string, text: string): void {
+        const labelEl = document.createElement("p");
+        labelEl.classList.add("violation-section-label");
+        labelEl.textContent = label;
+
+        const textEl = document.createElement("p");
+        textEl.classList.add(`violation-${label.toLowerCase()}-explanation`);
+        textEl.textContent = text;
+
+        container.appendChild(labelEl);
+        container.appendChild(textEl);
+    }
+
+    private addStatusInfo(container: HTMLElement, message: string): void {
+        const p = document.createElement("p");
+        p.classList.add("status-info");
+        p.textContent = message;
+        container.appendChild(p);
+    }
+
+    private applyTheme(): void {
+        if (!this.contentElement) return;
+        const isDark = this.themeManager.getTheme() === Theme.DARK;
+        this.contentElement.querySelectorAll<HTMLElement>(".violation-item").forEach((el) => {
+            el.style.background = isDark ? "#1e1e1e" : "#f0f0f0";
+            el.style.borderColor = isDark ? "#444" : "#ccc";
+        });
+    }
+
+    private async fetchAiSummary(v: Violation): Promise<{ constraint_explanation: string; violation_explanation: string; tfg_context: string; provider: string }> {
+        try {
+            const response = await fetch(EXPLAINER_API_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-API-Key": EXPLAINER_API_KEY,
+                },
+                body: JSON.stringify({
+                    constraint: v.constraint,
+                    violated_vertex: v.violatedVertices[0],
+                    inducing_vertex: v.inducingVertices[0],
+                    tfg: v.tfg,
+                }),
+            });
+
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return await response.json();
+        } catch (err) {
+            console.error("AI summary fetch failed:", err);
+            return {
+                constraint_explanation: "Could not load explanation.",
+                violation_explanation: "Could not load explanation.",
+                tfg_context: "",
+                provider: "error",
+            };
+        }
     }
 }

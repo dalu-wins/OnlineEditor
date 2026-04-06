@@ -67,6 +67,10 @@ export class ConstraintMenu extends AccordionUiExtension implements ThemeSwitcha
         return ConstraintMenu.ID;
     }
 
+    public collapse(): void {
+        this.close();
+    }
+
     protected initializeHeaderContent(headerElement: HTMLElement): void {
         headerElement.id = "constraint-menu-expand-title";
         headerElement.innerText = "Constraints";

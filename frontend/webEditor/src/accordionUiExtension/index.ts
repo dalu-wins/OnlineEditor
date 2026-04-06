@@ -66,4 +66,12 @@ export abstract class AccordionUiExtension extends AbstractUIExtension {
     protected toggleStatus() {
         this.mainCheckbox.checked = !this.mainCheckbox.checked;
     }
+
+    protected open(): void {
+        this.mainCheckbox.checked = true;
+    }
+
+    protected close(): void {
+        this.mainCheckbox.checked = false;
+    }
 }
