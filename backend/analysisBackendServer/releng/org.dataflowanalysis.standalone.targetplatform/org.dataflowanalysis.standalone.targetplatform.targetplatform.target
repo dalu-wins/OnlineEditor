@@ -3,7 +3,7 @@
 <target name="Target Platform" sequenceNumber="1">
 	<locations>
 		<location includeAllPlatforms="false" includeConfigurePhase="true" includeMode="planner" includeSource="false" type="InstallableUnit">
-			<repository location="file:///mnt/184CCA5A78B43ABB/bachelor/DataFlowAnalysis/releng/org.dataflowanalysis.analysis.updatesite/target/repository"/>
+			<repository location="file://mnt/184CCA5A78B43ABB/uni/bachelor/DataFlowAnalysis/releng/org.dataflowanalysis.analysis.updatesite/target/repository"/>
 			<unit id="org.dataflowanalysis.analysis.feature.feature.group" version="0.0.0"/>
 			<unit id="org.dataflowanalysis.converter.feature.feature.group" version="0.0.0"/>
 		</location>

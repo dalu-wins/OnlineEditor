@@ -87,27 +87,74 @@ export class ViolationUI extends AccordionUiExtension {
     private async renderSelected() {
         if (!this.detailPane) return;
 
+        const currentViolation = this.violations[this.selectedIndex];
+        if (!currentViolation) return;
+
+        // 1. Pane leeren
         this.detailPane.innerHTML = "";
 
+        // 2. Cache prüfen oder laden
         let s = this.summaryCache.get(this.selectedIndex);
         if (!s) {
             this.addStatusInfo(this.detailPane, "Analyzing...");
-            s = await this.fetchAiSummary(this.violations[this.selectedIndex]);
+            s = await this.fetchAiSummary(currentViolation);
             this.summaryCache.set(this.selectedIndex, s);
+            
+            // WICHTIG: Erneut leeren, um "Analyzing..." zu entfernen
             this.detailPane.innerHTML = "";
         }
 
+        // 3. Content rendern (Wichtig: Übergabe von currentViolation)
         const constraintItem = document.createElement("div");
         constraintItem.classList.add("violation-item");
-        this.addContent(constraintItem, "Constraint", s.constraint_explanation);
+        this.addContent(constraintItem, "Constraint", s.constraint_explanation, currentViolation);
         this.detailPane.appendChild(constraintItem);
 
         const violationItem = document.createElement("div");
         violationItem.classList.add("violation-item");
-        this.addContent(violationItem, "Violation", s.violation_explanation);
+        this.addContent(violationItem, "Violation", s.violation_explanation, currentViolation);
         this.detailPane.appendChild(violationItem);
 
         this.applyTheme();
+        this.addLegend(this.detailPane);
+    }
+
+    private addContent(container: HTMLElement, label: string, text: string, violation: Violation): void {
+        const labelEl = document.createElement("p");
+        labelEl.classList.add("violation-section-label");
+        labelEl.textContent = label;
+
+        const textEl = document.createElement("p");
+        textEl.classList.add(`violation-${label.toLowerCase()}-explanation`);
+
+        // Umbrüche entfernen für flüssigen Text
+        const cleanText = text.replace(/\n/g, " ");
+        const parts = cleanText.split(/(`[^`]+`)/g);
+
+        parts.forEach(part => {
+            if (part.startsWith('`') && part.endsWith('`')) {
+                const content = part.slice(1, -1);
+                const span = document.createElement("span");
+                span.classList.add("violation-text-highlight");
+
+                // Logik-Check für Klassen
+                const isTfg = violation.tfg.some(t => t.includes(content) || content.includes(t));
+                const isConstraint = violation.constraint.includes(content) || content.includes(violation.constraint);
+                if (isTfg) {
+                    span.classList.add("tfg-match");
+                } else if (isConstraint) {
+                    span.classList.add("constraint-match");
+                }
+
+                span.textContent = content;
+                textEl.appendChild(span);
+            } else if (part.length > 0) {
+                textEl.appendChild(document.createTextNode(part));
+            }
+        });
+
+        container.appendChild(labelEl);
+        container.appendChild(textEl);
     }
 
     private addDropDown(
@@ -149,18 +196,37 @@ export class ViolationUI extends AccordionUiExtension {
         return select;
     }
 
-    private addContent(container: HTMLElement, label: string, text: string): void {
-        const labelEl = document.createElement("p");
-        labelEl.classList.add("violation-section-label");
-        labelEl.textContent = label;
 
-        const textEl = document.createElement("p");
-        textEl.classList.add(`violation-${label.toLowerCase()}-explanation`);
-        textEl.textContent = text;
+    private addLegend(container: HTMLElement): void {
+        const legendContainer = document.createElement("div");
+        legendContainer.classList.add("violation-legend");
 
-        container.appendChild(labelEl);
-        container.appendChild(textEl);
+        const items = [
+            { label: "Part of Constraint", class: "constraint-match" },
+            { label: "Vertex Name", class: "tfg-match" }
+        ];
+
+        items.forEach(item => {
+            const wrapper = document.createElement("div");
+            wrapper.classList.add("legend-item");
+
+            const box = document.createElement("span");
+            box.classList.add("violation-text-highlight", item.class);
+            box.style.marginRight = "6px";
+            box.style.borderWidth = "1px"; // Sicherstellen, dass der Rahmen sichtbar ist
+            box.textContent = "abc"; // Beispieltext für die Box
+
+            const text = document.createElement("span");
+            text.textContent = item.label;
+
+            wrapper.appendChild(box);
+            wrapper.appendChild(text);
+            legendContainer.appendChild(wrapper);
+        });
+
+        container.appendChild(legendContainer);
     }
+
 
     private addStatusInfo(container: HTMLElement, message: string): void {
         const p = document.createElement("p");
@@ -188,8 +254,8 @@ export class ViolationUI extends AccordionUiExtension {
                 },
                 body: JSON.stringify({
                     constraint: v.constraint,
-                    violated_vertex: v.violatedVertices[0],
-                    inducing_vertex: v.inducingVertices[0],
+                    violated_vertex: v.violatedVertices,
+                    inducing_vertex: v.inducingVertices,
                     tfg: v.tfg,
                 }),
             });
